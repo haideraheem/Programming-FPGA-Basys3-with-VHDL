@@ -1,0 +1,251 @@
+#########Servo Control with Keypad###########
+
+
+After each heading make a new module 
+Top Module Code:
+
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+entity top is
+  Port (clk: in std_logic;
+  reset: in std_logic;
+  row: in std_logic_vector(3 downto 0);
+  col: out std_logic_vector(3 downto 0);
+  pwmo: out std_logic );
+end top ;
+architecture Behavioral of top is
+signal tmp : std_logic_vector(3 downto 0);
+component Decoder is
+	Port ( clk : in  STD_LOGIC;
+          Row : in  STD_LOGIC_VECTOR (3 downto 0);
+			 Col : out  STD_LOGIC_VECTOR (3 downto 0);
+          DecodeOut : out  STD_LOGIC_VECTOR (3 downto 0));
+	end component;
+component PWM is
+    Port ( clk_input: in std_logic;
+    A    : in STD_LOGIC_vector(3 downto 0);
+    reset: in std_logic;
+    clk_output: out std_logic
+     );
+end component;
+begin
+C0: Decoder port map (clk=>clk, Row =>Row, Col=>Col, DecodeOut=> tmp);
+S0: PWM port map (clk_input=>clk, A=>tmp, reset=>reset, clk_output=>pwmo);
+
+end Behavioral;
+
+Heading 2:
+Keypad Decoder:
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_ARITH.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+
+entity Decoder is
+    Port (
+			  clk : in  STD_LOGIC;
+          Row : in  STD_LOGIC_VECTOR (3 downto 0);
+			 Col : out  STD_LOGIC_VECTOR (3 downto 0);
+          DecodeOut : out  STD_LOGIC_VECTOR (3 downto 0));
+end Decoder;
+
+architecture Behavioral of Decoder is
+
+signal clksig :STD_LOGIC_VECTOR(19downto 0);
+begin
+	process(clk)
+		begin 
+		if clk'event and clk = '1' then
+			-- 1ms
+			if clksig = "00011000011010100000" then 
+				--C1
+				Col<= "1000";
+				clksig <= clksig+1;
+			-- check row pins
+			elsif clksig = "00011000011010101000" then	
+				--R1
+				if Row = "1000" then
+					DecodeOut <= "0001";	--1
+				--R2
+				elsif Row = "0100" then
+					DecodeOut <= "0100"; --4
+				--R3
+				elsif Row = "0010" then
+					DecodeOut <= "0111"; --7
+				--R4
+				elsif Row = "0001" then
+					DecodeOut <= "0000"; --0
+				end if;
+				clksig <= clksig+1;
+			-- 2ms
+			elsif clksig = "00110000110101000000" then	
+				--C2
+				Col<= "0100";
+				clksig <= clksig+1;
+			-- check row pins
+			elsif clksig = "00110000110101001000" then	
+				--R1
+				if Row = "1000" then		
+					DecodeOut <= "0010"; --2
+				--R2
+				elsif Row = "0100" then
+					DecodeOut <= "0101"; --5
+				--R3
+				elsif Row = "0010" then
+					DecodeOut <= "1000"; --8
+				--R4
+				elsif Row = "0001" then
+					DecodeOut <= "1111"; --F
+				end if;
+				clksig <= clksig+1;	
+			--3ms
+			elsif clksig = "01001001001111100000" then 
+				--C3
+				Col<= "0010";
+				clksig <= clksig+1;
+			-- check row pins
+			elsif clksig = "01001001001111101000" then 
+				--R1
+				if Row = "1000" then
+					DecodeOut <= "0011"; --3	
+				--R2
+				elsif Row = "0100" then
+					DecodeOut <= "0110"; --6
+				--R3
+				elsif Row = "0010" then
+					DecodeOut <= "1001"; --9
+				--R4
+				elsif Row = "0001" then
+					DecodeOut <= "1110"; --E
+				end if;
+				clksig <= clksig+1;
+			--4ms
+			elsif clksig = "01100001101010000000" then 			
+				--C4
+				Col<= "0001";
+				clksig <= clksig+1;
+			-- check row pins
+			elsif clksig = "01100001101010001000" then 
+				--R1
+				if Row = "1000" then
+					DecodeOut <= "1010"; --A
+				--R2
+				elsif Row = "0100" then
+					DecodeOut <= "1011"; --B
+				--R3
+				elsif Row = "0010" then
+					DecodeOut <= "1100"; --C
+				--R4
+				elsif Row = "0001" then
+					DecodeOut <= "1101"; --D
+				end if;
+				clksig <= "00000000000000000000";	
+			else
+				clksig <= clksig+1;	
+			end if;
+		end if;
+	end process;
+		
+		
+						 
+end Behavioral;
+
+Heading 3: PWM Servo Module:
+
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+use IEEE.std_logic_unsigned.all;
+			
+			
+entity PWM is
+    Port ( clk_input: in std_logic;
+    A    : in STD_LOGIC_vector(3 downto 0);
+    reset: in std_logic;
+    clk_output: out std_logic
+     );
+end PWM;
+
+architecture Behavioral of PWM is
+signal tmp: std_logic;
+signal count: integer range 0 to 4000001:=0;
+signal count1: integer range 0 to 4000001:=0;
+signal count2: integer range 0 to 4000001:=0;
+begin
+process(clk_input, reset)
+begin
+      
+    if reset = '1' then
+    tmp <= '0';
+    count<= 0 ;
+    else
+    if rising_edge (clk_input)then
+        if A="0110" then --if 6 is pressed
+           count <= count +1;
+            if count < 2222 then
+            tmp <= '1';
+            count <= count + 1;
+            end if;
+            if count > 2222 then
+            tmp <= '0';
+            count <= count+1;
+            end if;
+           if count > 2000000 then
+           count <= 0;  
+           end if;
+        end if;
+        if A = "1001" then -- if 9 is pressed
+           count <= count +1;
+            if count < 400000 then
+            tmp <= '1';
+            count <= count + 1;
+            end if;
+            if count > 400000 then
+            tmp <= '0';
+            count <= count+1;
+            end if;
+           if count > 2000000 then
+           count <= 0;  
+           end if;
+        end if;
+        end if;
+        end if;
+ end process;
+
+clk_output <= tmp;
+end Behavioral;
+
+Constraints:
+set_property PACKAGE_PIN W5 [get_ports clk]							
+	set_property IOSTANDARD LVCMOS33 [get_ports clk]
+set_property PACKAGE_PIN W15 [get_ports {reset}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {reset}]
+set_property PACKAGE_PIN J1 [get_ports {pwmo}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {pwmo}]
+set_property PACKAGE_PIN A14 [get_ports {row[0]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {row[0]}]
+#Sch name = JB2
+set_property PACKAGE_PIN A16 [get_ports {row[1]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {row[1]}]
+#Sch name = JB3
+set_property PACKAGE_PIN B15 [get_ports {row[2]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {row[2]}]
+#Sch name = JB4
+set_property PACKAGE_PIN B16 [get_ports {row[3]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {row[3]}]
+set_property PACKAGE_PIN K17 [get_ports {col[0]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {col[0]}]
+#Sch name = JC2
+set_property PACKAGE_PIN M18 [get_ports {col[1]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {col[1]}]
+#Sch name = JC3
+set_property PACKAGE_PIN N17 [get_ports {col[2]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {col[2]}]
+#Sch name = JC4
+set_property PACKAGE_PIN P18 [get_ports {col[3]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {col[3]}]
+
+
+
